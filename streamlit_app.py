@@ -20,8 +20,6 @@ st.subheader('Explore Permit Data by Construction Type and State')
 # Load data
 df50 = pd.read_parquet('data/csv_reveal-gc-2020-50.parquet')
 
-# Display column names for debugging
-st.write('Column Names:', df50.columns.tolist())
 
 # Input widgets
 ## Construction Type selection
