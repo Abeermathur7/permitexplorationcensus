@@ -19,7 +19,7 @@ st.subheader('Which Movie Genre performs ($) best at the box office?')
 
 #--------------------------------------------------------------------------------------------------------------
 df50 = pd.read_parquet('data/csv_reveal-gc-2020-50.parquet')
-print(df)50
+print(df)
 # df.year = df.year.astype('int')
 #--------------------------------------------------------------------------------------------------------------
 # Input widgets
