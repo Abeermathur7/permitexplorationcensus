@@ -13,13 +13,97 @@ with st.expander('About this app'):
   st.markdown('**How to use the app?**')
   st.warning('Idk yet, this is a prototype')
   
-st.subheader('Which Movie Genre performs ($) best at the box office?')
+st.subheader('Select a Construction Type')
 
 # Load data
 
 #--------------------------------------------------------------------------------------------------------------
 df50 = pd.read_parquet('data/csv_reveal-gc-2020-50.parquet')
-print(df)
+print(df50[:5])
+df50.describe()
+
+# Input widgets
+## Construction Type selection
+const_type_list = df50.CONST_TYPE.unique()
+const_type_selection = st.multiselect('Select Construction Types', const_type_list, const_type_list[:3])
+
+## State selection
+state_list = df50.SITE_STATE.unique()
+state_selection = st.multiselect('Select States', state_list, state_list[:3])
+
+# Filter data based on selections
+df_selection = df50[df50.CONST_TYPE.isin(const_type_selection) & df50.SITE_STATE.isin(state_selection)]
+
+# Display DataFrame
+st.dataframe(df_selection)
+
+# Pivot table to aggregate data
+reshaped_df = df_selection.pivot_table(index='SITE_STATE', columns='CONST_TYPE', values='PERMITID', aggfunc='count', fill_value=0)
+reshaped_df = reshaped_df.sort_values(by='SITE_STATE', ascending=False)
+
+# Display reshaped DataFrame
+st.subheader('Aggregated Data by State and Construction Type')
+st.dataframe(reshaped_df)
+
+# Prepare data for chart
+df_chart = reshaped_df.reset_index().melt(id_vars='SITE_STATE', var_name='CONST_TYPE', value_name='COUNT')
+
+# Display chart
+chart = alt.Chart(df_chart).mark_bar().encode(
+            x=alt.X('SITE_STATE:N', title='State'),
+            y=alt.Y('COUNT:Q', title='Permit Count'),
+            color='CONST_TYPE:N'
+            ).properties(height=320)
+st.altair_chart(chart, use_container_width=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # df.year = df.year.astype('int')
 #--------------------------------------------------------------------------------------------------------------
 # Input widgets
