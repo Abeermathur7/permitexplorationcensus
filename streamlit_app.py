@@ -3,6 +3,7 @@ import pandas as pd
 import altair as alt
 import folium
 from folium.plugins import MarkerCluster
+from streamlit_folium import st_folium
 
 # Page title
 st.set_page_config(page_title='Permit Data Exploration', page_icon='📊')
@@ -18,6 +19,9 @@ st.subheader('Explore Permit Data by Construction Type and State')
 
 # Load data
 df50 = pd.read_parquet('data/csv_reveal-gc-2020-50.parquet')
+
+# Display column names for debugging
+st.write('Column Names:', df50.columns.tolist())
 
 # Input widgets
 ## Construction Type selection
@@ -47,25 +51,24 @@ df_chart = reshaped_df.reset_index().melt(id_vars='SITE_STATE', var_name='CONST_
 
 # Display chart
 chart = alt.Chart(df_chart).mark_bar().encode(
-            x=alt.X('SITE_STATE:N', title='State'),
-            y=alt.Y('COUNT:Q', title='Permit Count'),
-            color='CONST_TYPE:N'
-            ).properties(height=320)
+    x=alt.X('SITE_STATE:N', title='State'),
+    y=alt.Y('COUNT:Q', title='Permit Count'),
+    color='CONST_TYPE:N'
+).properties(height=320)
 st.altair_chart(chart, use_container_width=True)
 
 # Map visualization
 st.subheader('Permit Locations Map')
 
 # Clean data for map visualization
-df_selection = df_selection.dropna(subset=['SITE_COOR1', 'SITE_DIR1'])
-df_selection = df_selection[df_selection['SITE_COOR1'].apply(lambda x: str(x).replace('.', '', 1).isdigit())]
-df_selection = df_selection[df_selection['SITE_DIR1'].apply(lambda x: str(x).replace('.', '', 1).isdigit())]
-df_selection['SITE_COOR1'] = df_selection['SITE_COOR1'].astype(float)
-df_selection['SITE_DIR1'] = df_selection['SITE_DIR1'].astype(float)
+df_selection = df_selection[df_selection['SITE_LAT'].apply(lambda x: str(x).replace('.', '', 1).isdigit())]
+df_selection = df_selection[df_selection['SITE_LONG'].apply(lambda x: str(x).replace('.', '', 1).lstrip('-').isdigit())]
+df_selection['SITE_LAT1'] = df_selection['SITE_LAT'].astype(float)
+df_selection['SITE_LONG1'] = df_selection['SITE_LONG'].astype(float)
 
-# Create a map centered on the average latitude and longitude
+# Create a Folium map centered on the average latitude and longitude
 if not df_selection.empty:
-    map_center = [df_selection['SITE_COOR1'].mean(), df_selection['SITE_DIR1'].mean()]
+    map_center = [df_selection['SITE_LAT1'].mean(), df_selection['SITE_LONG1'].mean()]
     m = folium.Map(location=map_center, zoom_start=5)
 
     # Add marker cluster to the map
@@ -74,30 +77,15 @@ if not df_selection.empty:
     # Add points to the map
     for idx, row in df_selection.iterrows():
         folium.Marker(
-            location=[row['SITE_COOR1'], row['SITE_DIR1']],
+            location=[row['SITE_LAT1'], row['SITE_LONG1']],
             popup=row['SITE_ADDRS']
         ).add_to(marker_cluster)
 
-    # Save the map as an HTML file
-    map_path = 'map.html'
-    m.save(map_path)
+    # Call to render Folium map in Streamlit
+    st_data = st_folium(m, width=800, height=500)
 
-    # Display the map in Streamlit
-    with open(map_path, 'r') as f:
-        html_map = f.read()
-    st.components.v1.html(html_map, width=700, height=500)
+    # Display the map
+    st.write('Permit Locations Map:')
+    st.write(st_data)
 else:
     st.write("No valid coordinates available for mapping.")
-
-# Optional: Add more charts and statistics if necessary
-# Example: Construction Type Distribution
-st.subheader('Construction Type Distribution')
-const_type_dist = df_selection['CONST_TYPE'].value_counts().reset_index()
-const_type_dist.columns = ['CONST_TYPE', 'COUNT']
-
-chart2 = alt.Chart(const_type_dist).mark_bar().encode(
-    x=alt.X('CONST_TYPE:N', title='Construction Type'),
-    y=alt.Y('COUNT:Q', title='Count'),
-    color='CONST_TYPE:N'
-).properties(height=320)
-st.altair_chart(chart2, use_container_width=True)
