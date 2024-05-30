@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Python: Streamlit",
+        "type": "python",
+        "request": "launch",
+        "program": "${workspaceFolder}/venv/bin/streamlit",  // Adjust this path if your virtual environment is different
+        "args": ["run", "streamlit_app.py"], // Replace streamlit_app.py with your script's name
+        "console": "integratedTerminal",
+        "justMyCode": true
+      }
+    ]
+  }
+  
