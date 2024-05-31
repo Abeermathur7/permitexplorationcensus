@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import folium
-from folium.plugins import MarkerCluster, HeatMap
+from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 
 # Page title
