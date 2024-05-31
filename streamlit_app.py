@@ -34,6 +34,18 @@ const_type_selection = st.multiselect('Select Construction Types', const_type_li
 state_list = df.SITE_STATE.unique()
 state_selection = st.multiselect('Select States', state_list, state_list[:3])
 
+jurisdiction_list = df['SITE_JURIS'].unique().tolist()
+jurisdiction_selection = st.multiselect('Select Jurisdictions', jurisdiction_list, jurisdiction_list[:3])
+
+# Filter data based on selections
+df_selection = df[
+    df['CONST_TYPE'].isin(const_type_selection) &
+    df['SITE_STATE'].isin(state_selection) &
+    df['SITE_JURIS'].isin(jurisdiction_selection)
+]
+
+# Display DataFrame
+st.dataframe(df_selection)
 # Filter data based on selections
 df_selection = df[df.CONST_TYPE.isin(const_type_selection) & df.SITE_STATE.isin(state_selection)]
 
@@ -86,10 +98,6 @@ if not df_selection_map.empty:
             location=[row['SITE_LAT1'], row['SITE_LONG1']],
             popup=row['PMT_VALUE']
         ).add_to(marker_cluster)
-
-    # Heatmap for permit values
-    heat_data = [[row['SITE_LAT1'], row['SITE_LONG1'], row['PMT_VALUE']] for index, row in df_selection_map.iterrows()]
-    HeatMap(heat_data).add_to(m)
 
     # Call to render Folium map in Streamlit
     st_data = st_folium(m, width=800, height=500)
