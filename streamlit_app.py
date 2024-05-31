@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import folium
-from folium.plugins import MarkerCluster
+from folium.plugins import MarkerCluster, HeatMap
 from streamlit_folium import st_folium
 
 # Page title
@@ -17,24 +17,32 @@ with st.expander('About this app'):
 
 st.subheader('Explore Permit Data by Construction Type and State')
 
-# Load data
-df50 = pd.read_parquet('data/csv_reveal-gc-2020-50.parquet')
+# File upload
+uploaded_file = st.file_uploader("Upload your Parquet file", type=['parquet'])
 
+if uploaded_file is not None:
+    df = pd.read_parquet(uploaded_file)
+else:
+    df = pd.read_parquet('data/csv_reveal-gc-2020-50.parquet')
 
 # Input widgets
 ## Construction Type selection
-const_type_list = df50.CONST_TYPE.unique()
+const_type_list = df.CONST_TYPE.unique()
 const_type_selection = st.multiselect('Select Construction Types', const_type_list, const_type_list[:3])
 
 ## State selection
-state_list = df50.SITE_STATE.unique()
+state_list = df.SITE_STATE.unique()
 state_selection = st.multiselect('Select States', state_list, state_list[:3])
 
 # Filter data based on selections
-df_selection = df50[df50.CONST_TYPE.isin(const_type_selection) & df50.SITE_STATE.isin(state_selection)]
+df_selection = df[df.CONST_TYPE.isin(const_type_selection) & df.SITE_STATE.isin(state_selection)]
 
 # Display DataFrame
 st.dataframe(df_selection)
+
+# Summary Statistics
+st.subheader('Summary Statistics')
+st.write(df_selection.describe())
 
 # Pivot table to aggregate data
 reshaped_df = df_selection.pivot_table(index='SITE_STATE', columns='CONST_TYPE', values='PERMITID', aggfunc='count', fill_value=0)
@@ -59,25 +67,29 @@ st.altair_chart(chart, use_container_width=True)
 st.subheader('Permit Locations Map')
 
 # Clean data for map visualization
-df_selection = df_selection[df_selection['SITE_LAT'].apply(lambda x: str(x).replace('.', '', 1).isdigit())]
-df_selection = df_selection[df_selection['SITE_LONG'].apply(lambda x: str(x).replace('.', '', 1).lstrip('-').isdigit())]
-df_selection['SITE_LAT1'] = df_selection['SITE_LAT'].astype(float)
-df_selection['SITE_LONG1'] = df_selection['SITE_LONG'].astype(float)
+df_selection_map = df_selection[df_selection['SITE_LAT'].apply(lambda x: str(x).replace('.', '', 1).isdigit())]
+df_selection_map = df_selection_map[df_selection_map['SITE_LONG'].apply(lambda x: str(x).replace('.', '', 1).lstrip('-').isdigit())]
+df_selection_map['SITE_LAT1'] = df_selection_map['SITE_LAT'].astype(float)
+df_selection_map['SITE_LONG1'] = df_selection_map['SITE_LONG'].astype(float)
 
 # Create a Folium map centered on the average latitude and longitude
-if not df_selection.empty:
-    map_center = [df_selection['SITE_LAT1'].mean(), df_selection['SITE_LONG1'].mean()]
+if not df_selection_map.empty:
+    map_center = [df_selection_map['SITE_LAT1'].mean(), df_selection_map['SITE_LONG1'].mean()]
     m = folium.Map(location=map_center, zoom_start=5)
 
     # Add marker cluster to the map
     marker_cluster = MarkerCluster().add_to(m)
 
     # Add points to the map
-    for idx, row in df_selection.iterrows():
+    for idx, row in df_selection_map.iterrows():
         folium.Marker(
             location=[row['SITE_LAT1'], row['SITE_LONG1']],
-            popup=row['SITE_ADDRS']
+            popup=row['PMT_VALUE']
         ).add_to(marker_cluster)
+
+    # Heatmap for permit values
+    heat_data = [[row['SITE_LAT1'], row['SITE_LONG1'], row['PMT_VALUE']] for index, row in df_selection_map.iterrows()]
+    HeatMap(heat_data).add_to(m)
 
     # Call to render Folium map in Streamlit
     st_data = st_folium(m, width=800, height=500)
