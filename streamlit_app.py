@@ -25,12 +25,6 @@ if uploaded_file is not None:
 else:
     df = pd.read_parquet('data/csv_reveal-gc-2020-50.parquet')
 
-# Convert date columns to datetime
-df['PMT_DATE'] = pd.to_datetime(df['PMT_DATE'])
-df['CREATEDATE'] = pd.to_datetime(df['CREATEDATE'])
-#######################################################
-# Calculate month lag
-df['month_lag'] = (df['CREATEDATE'].dt.to_period('M') - df['PMT_DATE'].dt.to_period('M')).apply(lambda x: x.n)
 # Input widgets
 ## Construction Type selection
 const_type_list = df.CONST_TYPE.unique()
@@ -55,33 +49,9 @@ st.dataframe(df_selection)
 # Filter data based on selections
 df_selection = df[df.CONST_TYPE.isin(const_type_selection) & df.SITE_STATE.isin(state_selection)]
 
-# Display DataFrame
-st.dataframe(df_selection)
-
 # Summary Statistics
 st.subheader('Summary Statistics')
 st.write(df_selection.describe())
-
-# Monthly Lag Visualization
-st.subheader('Monthly Lag Distribution')
-
-# Calculate monthly lag distribution
-monthly_lag_counts = df_selection['month_lag'].value_counts().reset_index()
-monthly_lag_counts.columns = ['Month Lag', 'Count']
-
-# Create Altair chart
-chart2 = alt.Chart(monthly_lag_counts).mark_bar().encode(
-    x=alt.X('Month Lag:O', title='Month Lag'),
-    y=alt.Y('Count:Q', title='Number of Permits'),
-    tooltip=['Month Lag', 'Count']
-).properties(
-    width=600,
-    height=400
-)
-st.write(chart2)
-
-################################################
-
 
 # Pivot table to aggregate data
 reshaped_df = df_selection.pivot_table(index='SITE_STATE', columns='CONST_TYPE', values='PERMITID', aggfunc='count', fill_value=0)
@@ -130,6 +100,7 @@ if not df_selection_map.empty:
     st_data = st_folium(m, width=800, height=500)
 
     # Display the map
+    st.write('Permit Locations Map:')
     st.write(st_data)
 else:
     st.write("No valid coordinates available for mapping.")
