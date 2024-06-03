@@ -18,16 +18,23 @@ with st.expander('About this app'):
 st.subheader('Explore Permit Data by Construction Type and State')
 
 # File upload
-uploaded_file = st.file_uploader("Upload your Parquet file", type=['parquet'])
+uploaded_file = st.file_uploader("Upload your Parquet file" t,ype=['parquet'])
 county = pd.read_parquet("data/tl_2019_countyfiles 1.parquet")
 cousubdiv = pd.read_parquet("data/tl_2019_cousubdiv 1.parquet")
 placefile = pd.read_parquet("data/tl_2019_placefiles 1.parquet")
 state = pd.read_parquet("data/tl_2019_states 1.parquet")
-if uploaded_file is not None:
-    df = pd.read_parquet(uploaded_file)
 
-else:
-    df = pd.read_parquet('data/csv_reveal-gc-2020-50.parquet')
+d1 = pd.read_parquet('data/csv_reveal-gc-2020-41.parquet')
+d2 = pd.read_parquet('data/csv_reveal-gc-2020-42.parquet')
+d3 = pd.read_parquet('data/csv_reveal-gc-2020-43.parquet')
+d4 = pd.read_parquet('data/csv_reveal-gc-2020-44.parquet')
+d5 = pd.read_parquet('data/csv_reveal-gc-2020-45.parquet')
+d6 = pd.read_parquet('data/csv_reveal-gc-2020-46.parquet')
+d7 = pd.read_parquet('data/csv_reveal-gc-2020-47.parquet')
+d8 = pd.read_parquet('data/csv_reveal-gc-2020-48.parquet')
+d9 = pd.read_parquet('data/csv_reveal-gc-2020-49.parquet')
+d50 = pd.read_parquet('data/csv_reveal-gc-2020-50.parquet')
+df = pd.concat([d1, d2, d3, d4, d5, d6, d7, d8, d9], ignore_index=True)
 
 # Input widgets
 ## Construction Type selection
@@ -67,7 +74,7 @@ st.dataframe(reshaped_df)
 
 # Prepare data for chart
 df_chart = reshaped_df.reset_index().melt(id_vars='SITE_STATE', var_name='CONST_TYPE', value_name='COUNT')
-
+st.write(df_chart)
 # Display chart
 chart = alt.Chart(df_chart).mark_bar().encode(
     x=alt.X('SITE_STATE:N', title='State'),
@@ -143,19 +150,15 @@ st.altair_chart(chart, use_container_width=True)
 # event
 
 
-# Calculate monthly lag
-# 1. Calculate month_lag for dataset1
-
-#Calculate monthly lag and display it in a st.vega_lite_chart
-# Subtract 7 days for the grace period
-df_selection['CREATEDATE'] = pd.to_datetime(df_selection['CREATEDATE'], format="%m/%d/%Y")
-df_selection['PMT_DATE'] = pd.to_datetime(df_selection['PMT_DATE'], format="%m/%d/%Y")
+st.subheader('Faceted Stacked Bar Chart of Permit Data')
 
 # Calculate month lag
-df_selection['MONTH_LAG'] = (df_selection['CREATEDATE'] - df_selection['PMT_DATE']).dt.days
+df_selection['CREATEDATE'] = pd.to_datetime(df_selection['CREATEDATE'])
+df_selection['PMT_DATE'] = pd.to_datetime(df_selection['PMT_DATE'])
+df_selection['MONTH_LAG'] = (df_selection['CREATEDATE'] - df_selection['PMT_DATE']).dt.days // 30
 
-# Summarize units by survey_month and jurisdiction
-df_selection['SURVEY_MONTH'] = df_selection['PMT_DATE']
+# Summarize units by survey month and jurisdiction
+df_selection['SURVEY_MONTH'] = df_selection['PMT_DATE'].dt.to_period('M').dt.to_timestamp()
 df_summarized = df_selection.groupby(['SURVEY_MONTH', 'SITE_JURIS', 'MONTH_LAG']).agg({'PMT_UNITS': 'sum'}).reset_index()
 
 # Debug: print the first few rows to check the data
@@ -169,21 +172,20 @@ chart_data = df_summarized.rename(columns={
     'PMT_UNITS': 'Units'
 })
 
-# Debug: print the first few rows to check the renamed data
-
-
 # Define the chart
-chart = alt.Chart(chart_data).mark_bar().encode(
+faceted_chart = alt.Chart(chart_data).mark_bar().encode(
     x=alt.X('Month:T', title='Month'),
-    y=alt.Y('Units:Q', title='Sum of Units'),
+    y=alt.Y('sum(Units):Q', title='Sum of Units'),
     color=alt.Color('Month Lag:O', title='Month Lag'),
-    tooltip=['Month', 'Jurisdiction', 'Month Lag', 'Units']
+    tooltip=['Month', 'Jurisdiction', 'Month Lag', 'sum(Units)']
 ).properties(
-    width=800,
-    height=400
+    width=200,  # Adjust width for individual facets
+    height=200  # Adjust height for individual facets
+).facet(
+    column=alt.Column('Jurisdiction:N', title='Jurisdiction')
 ).resolve_scale(
     y='independent'
 )
 
-# Render the chart
-st.altair_chart(chart)
+# Render the faceted chart
+st.altair_chart(faceted_chart)
