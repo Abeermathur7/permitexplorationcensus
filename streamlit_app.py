@@ -18,12 +18,7 @@ with st.expander('About this app'):
 st.subheader('Explore Permit Data by Construction Type and State')
 
 # File upload
-uploaded_file = st.file_uploader("Upload your Parquet file" t,ype=['parquet'])
-county = pd.read_parquet("data/tl_2019_countyfiles 1.parquet")
-cousubdiv = pd.read_parquet("data/tl_2019_cousubdiv 1.parquet")
-placefile = pd.read_parquet("data/tl_2019_placefiles 1.parquet")
-state = pd.read_parquet("data/tl_2019_states 1.parquet")
-
+uploaded_file = st.file_uploader("Upload your Parquet file", type=['parquet'])
 d1 = pd.read_parquet('data/csv_reveal-gc-2020-41.parquet')
 d2 = pd.read_parquet('data/csv_reveal-gc-2020-42.parquet')
 d3 = pd.read_parquet('data/csv_reveal-gc-2020-43.parquet')
@@ -46,7 +41,7 @@ state_list = df.SITE_STATE.unique()
 state_selection = st.multiselect('Select States', state_list, state_list[:3])
 
 jurisdiction_list = df['SITE_JURIS'].unique().tolist()
-jurisdiction_selection = st.multiselect('Select Jurisdictions', jurisdiction_list, jurisdiction_list[:3])
+jurisdiction_selection = st.multiselect('Select Jurisdictions', jurisdiction_list, jurisdiction_list[:15])
 
 # Filter data based on selections
 df_selection = df[
@@ -72,16 +67,16 @@ reshaped_df = reshaped_df.sort_values(by='SITE_STATE', ascending=False)
 st.subheader('Aggregated Data by State and Construction Type')
 st.dataframe(reshaped_df)
 
-# Prepare data for chart
-df_chart = reshaped_df.reset_index().melt(id_vars='SITE_STATE', var_name='CONST_TYPE', value_name='COUNT')
-st.write(df_chart)
-# Display chart
-chart = alt.Chart(df_chart).mark_bar().encode(
-    x=alt.X('SITE_STATE:N', title='State'),
-    y=alt.Y('COUNT:Q', title='Permit Count'),
-    color='CONST_TYPE:N'
-).properties(height=320)
-st.altair_chart(chart, use_container_width=True)
+# # Prepare data for chart
+# df_chart = reshaped_df.reset_index().melt(id_vars='SITE_STATE', var_name='CONST_TYPE', value_name='COUNT')
+# st.write(df_chart)
+# # Display chart
+# chart = alt.Chart(df_chart).mark_bar().encode(
+#     x=alt.X('SITE_STATE:N', title='State'),
+#     y=alt.Y('COUNT:Q', title='Permit Count'),
+#     color='CONST_TYPE:N'
+# ).properties(height=320)
+# st.altair_chart(chart, use_container_width=True)
 
 
 # # Map visualization
@@ -149,7 +144,6 @@ st.altair_chart(chart, use_container_width=True)
 
 # event
 
-
 st.subheader('Faceted Stacked Bar Chart of Permit Data')
 
 # Calculate month lag
@@ -158,34 +152,39 @@ df_selection['PMT_DATE'] = pd.to_datetime(df_selection['PMT_DATE'])
 df_selection['MONTH_LAG'] = (df_selection['CREATEDATE'] - df_selection['PMT_DATE']).dt.days // 30
 
 # Summarize units by survey month and jurisdiction
-df_selection['SURVEY_MONTH'] = df_selection['PMT_DATE'].dt.to_period('M').dt.to_timestamp()
-df_summarized = df_selection.groupby(['SURVEY_MONTH', 'SITE_JURIS', 'MONTH_LAG']).agg({'PMT_UNITS': 'sum'}).reset_index()
+df_unitFilter = df_selection[df_selection['PMT_UNITS']>0]
 
-# Debug: print the first few rows to check the data
-st.write("Summarized Data:", df_summarized.head())
 
-# Create Vega-Lite chart
+df_unitFilter['SURVEY_MONTH'] = df_selection['PMT_DATE'].dt.to_period('M').dt.to_timestamp()
+df_summarized = df_unitFilter.groupby(['SURVEY_MONTH', 'SITE_JURIS', 'MONTH_LAG']).agg({'PMT_UNITS': 'sum'}).reset_index()
+
+
+
 chart_data = df_summarized.rename(columns={
     'SURVEY_MONTH': 'Month',
     'SITE_JURIS': 'Jurisdiction',
     'MONTH_LAG': 'Month Lag',
     'PMT_UNITS': 'Units'
 })
-
-# Define the chart
-faceted_chart = alt.Chart(chart_data).mark_bar().encode(
-    x=alt.X('Month:T', title='Month'),
+######################################################################
+# Define the grouped bar chart
+grouped_bar_chart = alt.Chart(chart_data).mark_bar().encode(
+    x=alt.X('Month:T', title='Month', timeUnit='yearmonth', axis=alt.Axis(format='%b %Y')),
     y=alt.Y('sum(Units):Q', title='Sum of Units'),
-    color=alt.Color('Month Lag:O', title='Month Lag'),
-    tooltip=['Month', 'Jurisdiction', 'Month Lag', 'sum(Units)']
+    color=alt.Color('Jurisdiction:N', legend=alt.Legend(title="Jurisdiction")),
+    column=alt.Column('Jurisdiction:N', header=alt.Header(title="Jurisdiction")),
+    tooltip=['Month:T', 'sum(Units):Q', 'Jurisdiction:N', 'Month Lag:Q']
 ).properties(
-    width=200,  # Adjust width for individual facets
-    height=200  # Adjust height for individual facets
-).facet(
-    column=alt.Column('Jurisdiction:N', title='Jurisdiction')
-).resolve_scale(
-    y='independent'
+    width=100,
+    height=200
+).configure_axis(
+    labelFontSize=12,
+    titleFontSize=14
+).configure_legend(
+    labelFontSize=12,
+    titleFontSize=14
 )
 
-# Render the faceted chart
-st.altair_chart(faceted_chart)
+# Render the grouped bar chart
+st.altair_chart(grouped_bar_chart)
+## HELLO WORLD 
