@@ -4,6 +4,8 @@ import altair as alt
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
+import numpy as np
+import plotly.figure_factory as ff
 
 # Page title
 st.set_page_config(page_title='Permit Data Exploration', page_icon='📊')
@@ -50,14 +52,41 @@ df_selection = df[
     df['SITE_JURIS'].isin(jurisdiction_selection)
 ]
 
-# Display DataFrame
-st.dataframe(df_selection)
 # Filter data based on selections
 df_selection = df[df.CONST_TYPE.isin(const_type_selection) & df.SITE_STATE.isin(state_selection)]
 
 # Summary Statistics
+# Summary Statistics
 st.subheader('Summary Statistics')
-st.write(df_selection.describe())
+total_permits = df_selection.shape[0]
+total_value = df_selection['PMT_VALUE'].sum()
+average_value = df_selection['PMT_VALUE'].mean()
+max_value = df_selection['PMT_VALUE'].max()
+min_value = df_selection['PMT_VALUE'].min()
+
+# Display metrics
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric(label='Total Permits', value=total_permits)
+with col2:
+    st.metric(label='Total Value', value=total_value)
+with col3:
+    st.metric(label='Average Value', value=average_value)
+with col4:
+    st.metric(label='Max Value', value=max_value)
+
+
+# Interactive scatter plot for permit values vs. months
+st.subheader('Permit Values vs. Weeks')
+scatter_chart = alt.Chart(df_selection).mark_circle().encode(
+    x=alt.X('PMT_WEEK:Q', title='Permit Week'),
+    y=alt.Y('PMT_VALUE:Q', title='Permit Value'),
+    tooltip=['PMT_WEEK', 'PMT_VALUE']
+).properties(
+    width=600,
+    height=400
+).interactive()
+st.altair_chart(scatter_chart, use_container_width=True)
 
 # Pivot table to aggregate data
 reshaped_df = df_selection.pivot_table(index='SITE_STATE', columns='CONST_TYPE', values='PERMITID', aggfunc='count', fill_value=0)
@@ -67,16 +96,15 @@ reshaped_df = reshaped_df.sort_values(by='SITE_STATE', ascending=False)
 st.subheader('Aggregated Data by State and Construction Type')
 st.dataframe(reshaped_df)
 
-# # Prepare data for chart
-# df_chart = reshaped_df.reset_index().melt(id_vars='SITE_STATE', var_name='CONST_TYPE', value_name='COUNT')
-# st.write(df_chart)
-# # Display chart
-# chart = alt.Chart(df_chart).mark_bar().encode(
-#     x=alt.X('SITE_STATE:N', title='State'),
-#     y=alt.Y('COUNT:Q', title='Permit Count'),
-#     color='CONST_TYPE:N'
-# ).properties(height=320)
-# st.altair_chart(chart, use_container_width=True)
+# Prepare data for chart
+df_chart = reshaped_df.reset_index().melt(id_vars='SITE_STATE', var_name='CONST_TYPE', value_name='COUNT')
+# Display chart
+chart = alt.Chart(df_chart).mark_bar().encode(
+    x=alt.X('SITE_STATE:N', title='State'),
+    y=alt.Y('COUNT:Q', title='Permit Count'),
+    color='CONST_TYPE:N'
+).properties(height=320)
+st.altair_chart(chart, use_container_width=True)
 
 
 # # Map visualization
@@ -112,37 +140,7 @@ st.dataframe(reshaped_df)
 # else:
 #     st.write("No valid coordinates available for mapping.")
 
-# Example
-# import streamlit as st
-# import pandas as pd
-# import numpy as np
-# import altair as alt
 
-# if "data" not in st.session_state:
-#     st.session_state.data = pd.DataFrame(
-#         np.random.randn(20, 3), columns=["a", "b", "c"]
-#     )
-# df = st.session_state.data
-
-# point_selector = alt.selection_point("point_selection")
-# interval_selector = alt.selection_interval("interval_selection")
-# chart = (
-#     alt.Chart(df)
-#     .mark_circle()
-#     .encode(
-#         x="a",
-#         y="b",
-#         size="c",
-#         color="c",
-#         tooltip=["a", "b", "c"],
-#         fillOpacity=alt.condition(point_selector, alt.value(1), alt.value(0.3)),
-#     )
-#     .add_params(point_selector, interval_selector)
-# )
-
-# event = st.altair_chart(chart, key="alt_chart", on_select="rerun")
-
-# event
 
 st.subheader('Faceted Stacked Bar Chart of Permit Data')
 
@@ -152,7 +150,8 @@ df_selection['PMT_DATE'] = pd.to_datetime(df_selection['PMT_DATE'])
 df_selection['MONTH_LAG'] = (df_selection['CREATEDATE'] - df_selection['PMT_DATE']).dt.days // 30
 
 # Summarize units by survey month and jurisdiction
-df_unitFilter = df_selection[df_selection['PMT_UNITS']>0]
+df_unitFilter = df_selection[df_selection['PMT_UNITS']>0&
+    df_selection['SITE_JURIS'].isin(jurisdiction_selection) ]
 
 
 df_unitFilter['SURVEY_MONTH'] = df_selection['PMT_DATE'].dt.to_period('M').dt.to_timestamp()
@@ -167,30 +166,6 @@ chart_data = df_summarized.rename(columns={
     'PMT_UNITS': 'Units'
 })
 ######################################################################
-# Simplified bar chart for debugging
-# grouped_bar_chart = alt.Chart(chart_data).mark_bar().encode(
-#     x=alt.X('Month:T', title='Month', timeUnit='yearmonth', axis=alt.Axis(format='%b %Y')),
-#     y=alt.Y('sum(Units):Q', title='Sum of Units'),
-#     color=alt.Color('Jurisdiction:N', legend=alt.Legend(title="Jurisdiction")),
-#     tooltip=['Month:T', 'sum(Units):Q', 'Jurisdiction:N', 'Month Lag:Q']
-# ).properties(
-#     width=600,
-#     height=200
-# ).facet(
-#     row=alt.Row('Month Lag:Q', header=alt.Header(title="Monthly Lag"))
-# ).configure_axis(
-#     labelFontSize=12,
-#     titleFontSize=14
-# ).configure_legend(
-#     labelFontSize=12,
-#     titleFontSize=14
-# ).configure_facet(
-#     spacing=10  # Adjust spacing between facets
-# )
-
-# # Render the bar chart
-# st.altair_chart(grouped_bar_chart)
-
 
 max_month_lag = chart_data.groupby('Jurisdiction')['Month Lag'].max().reset_index()
 max_month_lag_jurisdiction = max_month_lag.loc[max_month_lag['Month Lag'].idxmax()]
@@ -233,3 +208,6 @@ with col2:
     avg_month_lag = chart_data['Month Lag'].mean()
     st.metric(label="Total Units", value=int(total_units))
     st.metric(label="Average Month Lag", value=round(avg_month_lag, 2))
+
+# Vega-Lite chart for Permit Units vs. Construction Type
+
