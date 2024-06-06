@@ -5,8 +5,7 @@ import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 import numpy as np
-import plotly.figure_factory as ff
-
+from streamlit_echarts import st_echarts
 # Page title
 st.set_page_config(page_title='Permit Data Exploration', page_icon='📊')
 st.title('📊 Permit Data Exploration')
@@ -54,8 +53,6 @@ df_selection = df[
 
 # Filter data based on selections
 df_selection = df[df.CONST_TYPE.isin(const_type_selection) & df.SITE_STATE.isin(state_selection)]
-
-# Summary Statistics
 # Summary Statistics
 st.subheader('Summary Statistics')
 total_permits = df_selection.shape[0]
@@ -76,35 +73,119 @@ with col4:
     st.metric(label='Max Value', value=max_value)
 
 
-# Interactive scatter plot for permit values vs. months
-st.subheader('Permit Values vs. Weeks')
-scatter_chart = alt.Chart(df_selection).mark_circle().encode(
-    x=alt.X('PMT_WEEK:Q', title='Permit Week'),
-    y=alt.Y('PMT_VALUE:Q', title='Permit Value'),
-    tooltip=['PMT_WEEK', 'PMT_VALUE']
-).properties(
-    width=600,
-    height=400
-).interactive()
-st.altair_chart(scatter_chart, use_container_width=True)
 
-# Pivot table to aggregate data
-reshaped_df = df_selection.pivot_table(index='SITE_STATE', columns='CONST_TYPE', values='PERMITID', aggfunc='count', fill_value=0)
-reshaped_df = reshaped_df.sort_values(by='SITE_STATE', ascending=False)
+# ECharts visualization
+st.subheader('ECharts: Permit Values Over Time')
 
-# Display reshaped DataFrame
-st.subheader('Aggregated Data by State and Construction Type')
-st.dataframe(reshaped_df)
+# Prepare data for ECharts
+df_selection['PMT_WEEK'] = df_selection['PMT_WEEK'].astype(str)  # Ensure PMT_WEEK is a string for ECharts
+chart_data = df_selection.groupby('PMT_WEEK')['PMT_VALUE'].sum().reset_index().sort_values('PMT_WEEK')
+# Define ECharts options with text color customization
+options = {
+    "tooltip": {
+        "trigger": "axis",
+        "axisPointer": {
+            "type": "cross"
+        },
+        "textStyle": {
+            "color": "black"  
+        }
+    },
+    "legend": {
+        "data": ["Permit Value"],
+        "textStyle": {
+            "color": "white"  
+        }
+    },
+    "xAxis": {
+        "type": "category",
+        "data": chart_data['PMT_WEEK'].tolist(),
+        "name": "Week",
+        "axisLabel": {
+            "rotate": 45,
+            "fontSize": 10,
+            "color": "white"  
+        },
+        "axisLine": {
+            "lineStyle": {
+                "color": "white"  
+            }
+        },
+        "splitLine": {
+            "show": False  
+        }
+    },
+    "yAxis": {
+        "type": "value",
+        "name": "Permit Value",
+        "axisLabel": {
+            "fontSize": 10,
+            "color": "white"  
+        },
+        "axisLine": {
+            "lineStyle": {
+                "color": "white"  
+            }
+        },
+        "splitLine": {
+            "lineStyle": {
+                "color": "#333"  
+            }
+        }
+    },
+    "series": [
+        {
+            "name": "Permit Value",
+            "data": chart_data['PMT_VALUE'].tolist(),
+            "type": "line",
+            "smooth": True,
+            "areaStyle": {
+                "color": {
+                    "type": "linear",
+                    "x": 0,
+                    "y": 0,
+                    "x2": 0,
+                    "y2": 1,
+                    "colorStops": [
+                        {
+                            "offset": 0,
+                            "color": "rgba(0, 128, 255, 0.3)"  
+                        },
+                        {
+                            "offset": 1,
+                            "color": "rgba(0, 128, 255, 0)"  
+                        }
+                    ]
+                }
+            },
+            "lineStyle": {
+                "width": 2,
+                "color": "blue"
+            },
+            "itemStyle": {
+               "color": "#40E0D0" 
+            },
+            "showSymbol": True,
+            "symbol": "circle",
+            "symbolSize": 8
+        }
+    ],
+    "dataZoom": [
+        {
+            "type": "inside",
+            "start": 0,
+            "end": 100
+        }
+    ],
+    "title": {
+        "text": "Permit Values Over Time",
+        "textStyle": {
+            "color": "White"  
+        }
+    }
+}
 
-# Prepare data for chart
-df_chart = reshaped_df.reset_index().melt(id_vars='SITE_STATE', var_name='CONST_TYPE', value_name='COUNT')
-# Display chart
-chart = alt.Chart(df_chart).mark_bar().encode(
-    x=alt.X('SITE_STATE:N', title='State'),
-    y=alt.Y('COUNT:Q', title='Permit Count'),
-    color='CONST_TYPE:N'
-).properties(height=320)
-st.altair_chart(chart, use_container_width=True)
+st_echarts(options=options, height="400px")
 
 
 # # Map visualization
@@ -141,8 +222,70 @@ st.altair_chart(chart, use_container_width=True)
 #     st.write("No valid coordinates available for mapping.")
 
 
+# Pivot table to aggregate data
+reshaped_df = df_selection.pivot_table(index='SITE_STATE', columns='CONST_TYPE', values='PERMITID', aggfunc='count', fill_value=0)
+reshaped_df = reshaped_df.sort_values(by='SITE_STATE', ascending=False)
+df_chart = reshaped_df.reset_index().melt(id_vars='SITE_STATE', var_name='CONST_TYPE', value_name='COUNT')
 
-st.subheader('Faceted Stacked Bar Chart of Permit Data')
+# Define ECharts options for the bar chart
+bar_chart_options = {
+    "tooltip": {
+        "trigger": "axis",
+        "axisPointer": {
+            "type": "shadow"
+        }
+    },
+    "legend": {
+        "data": df_chart['CONST_TYPE'].unique().tolist(),
+        "textStyle": {
+            "fontSize": 12,
+            "color": "white"
+        }
+    },
+    "xAxis": {
+        "type": "category",
+        "data": df_chart['SITE_STATE'].tolist(),
+        "name": "State",
+        "axisLabel": {
+            "rotate": 45,
+            "fontSize": 10,
+            "color": "white"
+        }
+    },
+    "yAxis": {
+        "type": "value",
+        "name": "Permit Count",
+        "axisLabel": {
+            "fontSize": 10,
+            "color": "white"
+        }
+    },
+    "series": [
+        {
+            "name": const_type,
+            "type": "bar",
+            "data": df_chart[df_chart['CONST_TYPE'] == const_type]['COUNT'].tolist()
+        }
+        for const_type in df_chart['CONST_TYPE'].unique().tolist()
+    ]
+}
+
+# Display the ECharts bar chart
+st_echarts(options=bar_chart_options, height="400px")
+
+
+
+####################################################################################
+
+
+
+
+
+
+
+
+
+
 
 # Calculate month lag
 df_selection['CREATEDATE'] = pd.to_datetime(df_selection['CREATEDATE'])
@@ -211,3 +354,4 @@ with col2:
 
 # Vega-Lite chart for Permit Units vs. Construction Type
 
+# Faceted stacked bar chart options
