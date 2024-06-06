@@ -153,17 +153,17 @@ options = {
                         },
                         {
                             "offset": 1,
-                            "color": "rgba(0, 128, 255, 0)"  
+                            "color": "#00FF00" 
                         }
                     ]
                 }
             },
             "lineStyle": {
                 "width": 2,
-                "color": "blue"
+                "color": "#00FF00"
             },
             "itemStyle": {
-               "color": "#40E0D0" 
+               "color":"#00FF00"
             },
             "showSymbol": True,
             "symbol": "circle",
@@ -267,7 +267,20 @@ bar_chart_options = {
             "data": df_chart[df_chart['CONST_TYPE'] == const_type]['COUNT'].tolist()
         }
         for const_type in df_chart['CONST_TYPE'].unique().tolist()
-    ]
+    ],
+    "dataZoom": [
+        {
+            "type": "inside",
+            "start": 0,
+            "end": 100
+        }
+    ],
+    "title": {
+        "text": "Permit Values Over Time",
+        "textStyle": {
+            "color": "White"  
+        }
+    }
 }
 
 # Display the ECharts bar chart
