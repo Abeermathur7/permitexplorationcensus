@@ -6,6 +6,7 @@ from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 import numpy as np
 from streamlit_echarts import st_echarts
+import humanize
 # Page title
 st.set_page_config(page_title='Permit Data Exploration', page_icon='📊')
 st.title('📊 Permit Data Exploration')
@@ -60,17 +61,29 @@ total_value = df_selection['PMT_VALUE'].sum()
 average_value = df_selection['PMT_VALUE'].mean()
 max_value = df_selection['PMT_VALUE'].max()
 min_value = df_selection['PMT_VALUE'].min()
-
+# Format numbers for display
+total_permits_str = humanize.intword(total_permits)
+total_value_str = humanize.intword(total_value)
+average_value_str = humanize.intword(average_value)
+max_value_str = humanize.intword(max_value)
+min_value_str = humanize.intword(min_value)
 # Display metrics
-col1, col2, col3, col4 = st.columns(4)
+max_text_length = max(len(total_permits_str), len(total_value_str), len(average_value_str), len(max_value_str), len(min_value_str))
+
+# Determine column width based on max text length
+column_width = 1.5 if max_text_length < 10 else 2
+
+col1, col2, col3, col4, col5 = st.columns([column_width]*5)
 with col1:
-    st.metric(label='Total Permits', value=total_permits)
+    st.metric(label='Total Permits', value=total_permits_str)
 with col2:
-    st.metric(label='Total Value', value=total_value)
+    st.metric(label='Total Value', value=total_value_str)
 with col3:
-    st.metric(label='Average Value', value=average_value)
+    st.metric(label='Average Value', value=average_value_str)
 with col4:
-    st.metric(label='Max Value', value=max_value)
+    st.metric(label='Max Value', value=max_value_str)
+with col5:
+    st.metric(label='Min Value', value=min_value_str)
 
 
 
@@ -360,43 +373,58 @@ with col2:
     st.metric(label="Average Month Lag", value=round(avg_month_lag, 2))
 
 ####################################################
+# Calculate total units per month
+total_units_per_month = chart_data.groupby('Month')['Units'].sum().reset_index()
 
+# Convert Timestamp objects to strings
+total_units_per_month['Month'] = total_units_per_month['Month'].dt.strftime('%Y-%m')
+chart_data['Month'] = chart_data['Month'].dt.strftime('%Y-%m')
+
+# Calculate proportion of monthly lag for each jurisdiction
+chart_data['Proportion'] = chart_data.groupby(['Month', 'Jurisdiction'])['Units'].transform(lambda x: x / x.sum())
+
+# Create the stacked bar chart options
 bar_chart_options = {
     "tooltip": {
         "trigger": "axis",
         "axisPointer": {
-            "type": "shadow"
+            "type": "shadow",
         }
     },
     "legend": {
-        "data": chart_data['Month Lag'].unique().tolist(),
-        "textStyle": {
-            "fontSize": 12
-        }
-    },
-    "xAxis": {
-        "type": "category",
         "data": chart_data['Jurisdiction'].unique().tolist(),
-        "name": "Jurisdiction",
-        "axisLabel": {
-            "rotate": 45,
-            "fontSize": 10
-        }
+        "textStyle": {"color": "white"}
     },
-    "yAxis": {
-        "type": "value",
-        "name": "Sum of Units",
-        "axisLabel": {
-            "fontSize": 10
+    "xAxis": [
+        {
+            "type": "category",
+            "data": total_units_per_month['Month'].tolist(),
+            "name": "Month",
+            "axisLabel": {
+                "rotate": 45,
+                "fontSize": 10,
+                "color": "white"
+            }
         }
-    },
+    ],
+    "yAxis": [
+        {
+            "type": "value",
+            "name": "Proportion of Monthly Lag",
+            "axisLabel": {
+                "fontSize": 10,
+                "color": "white"
+            }
+        }
+    ],
     "series": [
         {
-            "name": month_lag,
+            "name": jurisdiction,
             "type": "bar",
-            "data": chart_data[chart_data['Month Lag'] == month_lag]['Units'].tolist()
+            "stack": "month_lag",
+            "data": chart_data[chart_data['Jurisdiction'] == jurisdiction]['Proportion'].tolist()
         }
-        for month_lag in chart_data['Month Lag'].unique().tolist()
+        for jurisdiction in chart_data['Jurisdiction'].unique().tolist()
     ],
     "grid": {
         "top": "20%",
@@ -407,5 +435,4 @@ bar_chart_options = {
     }
 }
 
-# Display the ECharts bar chart
 st_echarts(options=bar_chart_options, height="400px")
