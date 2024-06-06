@@ -41,7 +41,7 @@ state_list = df.SITE_STATE.unique()
 state_selection = st.multiselect('Select States', state_list, state_list[:3])
 
 jurisdiction_list = df['SITE_JURIS'].unique().tolist()
-jurisdiction_selection = st.multiselect('Select Jurisdictions', jurisdiction_list, jurisdiction_list[:15])
+jurisdiction_selection = st.multiselect('Select Jurisdictions', jurisdiction_list, jurisdiction_list[:3])
 
 # Filter data based on selections
 df_selection = df[
@@ -168,29 +168,68 @@ chart_data = df_summarized.rename(columns={
 })
 ######################################################################
 # Simplified bar chart for debugging
-grouped_bar_chart = alt.Chart(chart_data).mark_bar().encode(
-    x=alt.X('Month:T', title='Month', timeUnit='yearmonth', axis=alt.Axis(format='%b %Y')),
-    y=alt.Y('sum(Units):Q', title='Sum of Units'),
-    color=alt.Color('Jurisdiction:N', legend=alt.Legend(title="Jurisdiction")),
-    tooltip=['Month:T', 'sum(Units):Q', 'Jurisdiction:N', 'Month Lag:Q']
-).properties(
-    width=600,
-    height=200
-).facet(
-    row=alt.Row('Month Lag:Q', header=alt.Header(title="Monthly Lag"))
-).configure_axis(
-    labelFontSize=12,
-    titleFontSize=14
-).configure_legend(
-    labelFontSize=12,
-    titleFontSize=14
-).configure_facet(
-    spacing=10  # Adjust spacing between facets
-)
+# grouped_bar_chart = alt.Chart(chart_data).mark_bar().encode(
+#     x=alt.X('Month:T', title='Month', timeUnit='yearmonth', axis=alt.Axis(format='%b %Y')),
+#     y=alt.Y('sum(Units):Q', title='Sum of Units'),
+#     color=alt.Color('Jurisdiction:N', legend=alt.Legend(title="Jurisdiction")),
+#     tooltip=['Month:T', 'sum(Units):Q', 'Jurisdiction:N', 'Month Lag:Q']
+# ).properties(
+#     width=600,
+#     height=200
+# ).facet(
+#     row=alt.Row('Month Lag:Q', header=alt.Header(title="Monthly Lag"))
+# ).configure_axis(
+#     labelFontSize=12,
+#     titleFontSize=14
+# ).configure_legend(
+#     labelFontSize=12,
+#     titleFontSize=14
+# ).configure_facet(
+#     spacing=10  # Adjust spacing between facets
+# )
 
-# Render the bar chart
-st.altair_chart(grouped_bar_chart)
+# # Render the bar chart
+# st.altair_chart(grouped_bar_chart)
 
-# 'Month Lag:Q', header=alt.Header(title="Monthly Lag")
 
-#
+max_month_lag = chart_data.groupby('Jurisdiction')['Month Lag'].max().reset_index()
+max_month_lag_jurisdiction = max_month_lag.loc[max_month_lag['Month Lag'].idxmax()]
+
+# Create a two-column layout
+col1, col2 = st.columns([3, 1])
+
+# Column 1: Render the bar chart
+with col1:
+    grouped_bar_chart = alt.Chart(chart_data).mark_bar().encode(
+        x=alt.X('Month:T', title='Month', timeUnit='yearmonth', axis=alt.Axis(format='%b %Y')),
+        y=alt.Y('sum(Units):Q', title='Sum of Units'),
+        color=alt.Color('Jurisdiction:N', legend=alt.Legend(title="Jurisdiction")),
+        tooltip=['Month:T', 'sum(Units):Q', 'Jurisdiction:N', 'Month Lag:Q']
+    ).properties(
+        width= 200,
+        height=100
+    ).facet(
+        row=alt.Row('Month Lag:Q', header=alt.Header(title="Monthly Lag"))
+    ).configure_axis(
+        labelFontSize=12,
+        titleFontSize=14
+    ).configure_legend(
+        labelFontSize=12,
+        titleFontSize=14
+    ).configure_facet(
+        spacing=10  # Adjust spacing between facets
+    )
+
+    st.altair_chart(grouped_bar_chart)
+
+# Column 2: Display key metrics
+with col2:
+    st.write("## Key Metrics")
+    st.metric(label="Maximum Month Lag", value=int(max_month_lag_jurisdiction['Month Lag']))
+    st.metric(label="Jurisdiction with Maximum Month Lag", value=max_month_lag_jurisdiction['Jurisdiction'])
+
+    # Optionally, add more metrics here
+    total_units = chart_data['Units'].sum()
+    avg_month_lag = chart_data['Month Lag'].mean()
+    st.metric(label="Total Units", value=int(total_units))
+    st.metric(label="Average Month Lag", value=round(avg_month_lag, 2))
