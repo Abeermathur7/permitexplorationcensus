@@ -167,24 +167,30 @@ chart_data = df_summarized.rename(columns={
     'PMT_UNITS': 'Units'
 })
 ######################################################################
-# Define the grouped bar chart
+# Simplified bar chart for debugging
 grouped_bar_chart = alt.Chart(chart_data).mark_bar().encode(
     x=alt.X('Month:T', title='Month', timeUnit='yearmonth', axis=alt.Axis(format='%b %Y')),
     y=alt.Y('sum(Units):Q', title='Sum of Units'),
     color=alt.Color('Jurisdiction:N', legend=alt.Legend(title="Jurisdiction")),
-    column=alt.Column('Jurisdiction:N', header=alt.Header(title="Jurisdiction")),
     tooltip=['Month:T', 'sum(Units):Q', 'Jurisdiction:N', 'Month Lag:Q']
 ).properties(
-    width=100,
+    width=600,
     height=200
+).facet(
+    row=alt.Row('Month Lag:Q', header=alt.Header(title="Monthly Lag"))
 ).configure_axis(
     labelFontSize=12,
     titleFontSize=14
 ).configure_legend(
     labelFontSize=12,
     titleFontSize=14
+).configure_facet(
+    spacing=10  # Adjust spacing between facets
 )
 
-# Render the grouped bar chart
+# Render the bar chart
 st.altair_chart(grouped_bar_chart)
-## HELLO WORLD 
+
+# 'Month Lag:Q', header=alt.Header(title="Monthly Lag")
+
+#
