@@ -221,7 +221,7 @@ st_echarts(options=options, height="400px")
 # else:
 #     st.write("No valid coordinates available for mapping.")
 
-
+st.subheader('Number of Permits by Features')
 # Pivot table to aggregate data
 reshaped_df = df_selection.pivot_table(index='SITE_STATE', columns='CONST_TYPE', values='PERMITID', aggfunc='count', fill_value=0)
 reshaped_df = reshaped_df.sort_values(by='SITE_STATE', ascending=False)
@@ -274,13 +274,7 @@ bar_chart_options = {
             "start": 0,
             "end": 100
         }
-    ],
-    "title": {
-        "text": "Permit Values Over Time",
-        "textStyle": {
-            "color": "White"  
-        }
-    }
+    ]
 }
 
 # Display the ECharts bar chart
@@ -298,7 +292,7 @@ st_echarts(options=bar_chart_options, height="400px")
 
 
 
-
+st.subheader('Montly Lag by Features')
 
 # Calculate month lag
 df_selection['CREATEDATE'] = pd.to_datetime(df_selection['CREATEDATE'])
@@ -365,6 +359,53 @@ with col2:
     st.metric(label="Total Units", value=int(total_units))
     st.metric(label="Average Month Lag", value=round(avg_month_lag, 2))
 
-# Vega-Lite chart for Permit Units vs. Construction Type
+####################################################
 
-# Faceted stacked bar chart options
+bar_chart_options = {
+    "tooltip": {
+        "trigger": "axis",
+        "axisPointer": {
+            "type": "shadow"
+        }
+    },
+    "legend": {
+        "data": chart_data['Month Lag'].unique().tolist(),
+        "textStyle": {
+            "fontSize": 12
+        }
+    },
+    "xAxis": {
+        "type": "category",
+        "data": chart_data['Jurisdiction'].unique().tolist(),
+        "name": "Jurisdiction",
+        "axisLabel": {
+            "rotate": 45,
+            "fontSize": 10
+        }
+    },
+    "yAxis": {
+        "type": "value",
+        "name": "Sum of Units",
+        "axisLabel": {
+            "fontSize": 10
+        }
+    },
+    "series": [
+        {
+            "name": month_lag,
+            "type": "bar",
+            "data": chart_data[chart_data['Month Lag'] == month_lag]['Units'].tolist()
+        }
+        for month_lag in chart_data['Month Lag'].unique().tolist()
+    ],
+    "grid": {
+        "top": "20%",
+        "left": "5%",
+        "right": "5%",
+        "bottom": "8%",
+        "containLabel": True
+    }
+}
+
+# Display the ECharts bar chart
+st_echarts(options=bar_chart_options, height="400px")
