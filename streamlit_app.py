@@ -7,6 +7,9 @@ from streamlit_folium import st_folium
 import numpy as np
 from streamlit_echarts import st_echarts
 import humanize
+from pyecharts.charts import Map
+from pyecharts import options as opts
+from streamlit_echarts import st_pyecharts
 # Page title
 st.set_page_config(page_title='Permit Data Exploration', page_icon='📊')
 st.title('📊 Permit Data Exploration')
@@ -42,7 +45,14 @@ const_type_selection = st.multiselect('Select Construction Types', const_type_li
 state_list = df.SITE_STATE.unique()
 state_selection = st.multiselect('Select States', state_list, state_list[:3])
 
-jurisdiction_list = df['SITE_JURIS'].unique().tolist()
+
+# Filter available jurisdictions based on selected states
+if state_selection:
+    filtered_df = df[df['SITE_STATE'].isin(state_selection)]
+    jurisdiction_list = filtered_df['SITE_JURIS'].unique().tolist()
+else:
+    jurisdiction_list = df['SITE_JURIS'].unique().tolist()
+
 jurisdiction_selection = st.multiselect('Select Jurisdictions', jurisdiction_list, jurisdiction_list[:3])
 
 # Filter data based on selections
@@ -341,13 +351,13 @@ with col1:
     grouped_bar_chart = alt.Chart(chart_data).mark_bar().encode(
         x=alt.X('Month:T', title='Month', timeUnit='yearmonth', axis=alt.Axis(format='%b %Y')),
         y=alt.Y('sum(Units):Q', title='Sum of Units'),
-        color=alt.Color('Jurisdiction:N', legend=alt.Legend(title="Jurisdiction")),
+        color=alt.Color('Month Lag:Q', legend=alt.Legend(title="Monthly Lag")),
         tooltip=['Month:T', 'sum(Units):Q', 'Jurisdiction:N', 'Month Lag:Q']
     ).properties(
         width= 200,
         height=100
     ).facet(
-        row=alt.Row('Month Lag:Q', header=alt.Header(title="Monthly Lag"))
+        row=alt.Row('Jurisdiction:N', header=alt.Header(title="Jurisdiction"))
     ).configure_axis(
         labelFontSize=12,
         titleFontSize=14
@@ -359,6 +369,12 @@ with col1:
     )
 
     st.altair_chart(grouped_bar_chart)
+#'Month Lag:Q', header=alt.Header(title="Monthly Lag")
+#'Jurisdiction:N', legend=alt.Legend(title="Jurisdiction")
+#############################################################################################
+
+
+
 
 # Column 2: Display key metrics
 with col2:
@@ -384,55 +400,81 @@ chart_data['Month'] = chart_data['Month'].dt.strftime('%Y-%m')
 chart_data['Proportion'] = chart_data.groupby(['Month', 'Jurisdiction'])['Units'].transform(lambda x: x / x.sum())
 
 # Create the stacked bar chart options
-bar_chart_options = {
-    "tooltip": {
-        "trigger": "axis",
-        "axisPointer": {
-            "type": "shadow",
-        }
-    },
-    "legend": {
-        "data": chart_data['Jurisdiction'].unique().tolist(),
-        "textStyle": {"color": "white"}
-    },
-    "xAxis": [
-        {
-            "type": "category",
-            "data": total_units_per_month['Month'].tolist(),
-            "name": "Month",
-            "axisLabel": {
-                "rotate": 45,
-                "fontSize": 10,
-                "color": "white"
-            }
-        }
-    ],
-    "yAxis": [
-        {
-            "type": "value",
-            "name": "Proportion of Monthly Lag",
-            "axisLabel": {
-                "fontSize": 10,
-                "color": "white"
-            }
-        }
-    ],
-    "series": [
-        {
-            "name": jurisdiction,
-            "type": "bar",
-            "stack": "month_lag",
-            "data": chart_data[chart_data['Jurisdiction'] == jurisdiction]['Proportion'].tolist()
-        }
-        for jurisdiction in chart_data['Jurisdiction'].unique().tolist()
-    ],
-    "grid": {
-        "top": "20%",
-        "left": "5%",
-        "right": "5%",
-        "bottom": "8%",
-        "containLabel": True
-    }
-}
+# bar_chart_options = {
+#     "tooltip": {
+#         "trigger": "axis",
+#         "axisPointer": {
+#             "type": "shadow",
+#         }
+#     },
+#     "legend": {
+#         "data": chart_data['Jurisdiction'].unique().tolist(),
+#         "textStyle": {"color": "white"}
+#     },
+#     "xAxis": [
+#         {
+#             "type": "category",
+#             "data": total_units_per_month['Month'].tolist(),
+#             "name": "Month",
+#             "axisLabel": {
+#                 "rotate": 45,
+#                 "fontSize": 10,
+#                 "color": "white"
+#             }
+#         }
+#     ],
+#     "yAxis": [
+#         {
+#             "type": "value",
+#             "name": "Proportion of Monthly Lag",
+#             "axisLabel": {
+#                 "fontSize": 10,
+#                 "color": "white"
+#             }
+#         }
+#     ],
+#     "series": [
+#         {
+#             "name": jurisdiction,
+#             "type": "bar",
+#             "stack": "month_lag",
+#             "data": chart_data[chart_data['Jurisdiction'] == jurisdiction]['Proportion'].tolist()
+#         }
+#         for jurisdiction in chart_data['Jurisdiction'].unique().tolist()
+#     ],
+#     "grid": {
+#         "top": "20%",
+#         "left": "5%",
+#         "right": "5%",
+#         "bottom": "8%",
+#         "containLabel": True
+#     }
+# }
 
-st_echarts(options=bar_chart_options, height="400px")
+# st_echarts(options=bar_chart_options, height="400px")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#####################################################################################################################################################################################################################################################################################
+
+
+
+
+
